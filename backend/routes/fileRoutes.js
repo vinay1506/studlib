@@ -1,6 +1,8 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const verifyToken = require('../middleware/auth');
+const Resource = require('../models/Resource'); // Make sure this model exists
 const router = express.Router();
 
 // Storage config
@@ -15,8 +17,19 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-router.post('/upload', upload.single('file'), (req, res) => {
-  res.status(200).json({ filePath: req.file.filename });
+// Secure upload endpoint
+router.post('/upload', verifyToken, upload.single('file'), async (req, res) => {
+  try {
+    const fileUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+    const newFile = await Resource.create({
+      title: req.body.title,
+      fileUrl,
+      uploadedBy: req.user.id
+    });
+    res.json(newFile);
+  } catch (err) {
+    res.status(500).json({ message: 'File upload failed', error: err.message });
+  }
 });
 
 module.exports = router;
